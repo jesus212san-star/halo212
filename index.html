@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GALAXY REACH ⚔️</title>
+
+<style>
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:Arial, sans-serif;
+}
+
+body{
+    overflow:hidden;
+    background:black;
+}
+
+canvas{
+    display:block;
+    background:
+    radial-gradient(circle at center,#111 0%,#000 80%);
+}
+
+#menu{
+    position:absolute;
+    width:100%;
+    height:100%;
+    background:rgba(0,0,0,0.9);
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    align-items:center;
+    color:white;
+    z-index:10;
+}
+
+#menu h1{
+    font-size:70px;
+    color:#00ffee;
+    text-shadow:0 0 20px #00ffee;
+    margin-bottom:20px;
+}
+
+#menu p{
+    margin-bottom:30px;
+    font-size:20px;
+}
+
+button{
+    padding:15px 40px;
+    border:none;
+    border-radius:15px;
+    font-size:20px;
+    cursor:pointer;
+    background:#00ffee;
+    color:black;
+    font-weight:bold;
+    transition:0.3s;
+}
+
+button:hover{
+    transform:scale(1.1);
+}
+
+#hud{
+    position:absolute;
+    top:10px;
+    left:10px;
+    color:white;
+    font-size:22px;
+    z-index:5;
+}
+
+#mission{
+    position:absolute;
+    top:10px;
+    right:10px;
+    color:#00ffee;
+    font-size:20px;
+    z-index:5;
+}
+
+#gameover{
+    position:absolute;
+    width:100%;
+    height:100%;
+    background:rgba(0,0,0,0.85);
+    display:none;
+    justify-content:center;
+    align-items:center;
+    flex-direction:column;
+    color:white;
+    z-index:20;
+}
+
+#gameover h2{
+    font-size:60px;
+    margin-bottom:20px;
+    color:red;
+}
+</style>
+</head>
+<body>
+
+<div id="menu">
+    <h1>GALAXY REACH</h1>
+    <p>Defiende la colonia humana de los invasores alienígenas 👾</p>
+    <button onclick="startGame()">INICIAR MISIÓN</button>
+</div>
+
+<div id="hud">
+    ❤️ Vida: <span id="vida">100</span><br>
+    🔫 Enemigos eliminados: <span id="kills">0</span>
+</div>
+
+<div id="mission">
+    MISIÓN 1: Sobrevive
+</div>
+
+<div id="gameover">
+    <h2>GAME OVER</h2>
+    <button onclick="location.reload()">REINTENTAR</button>
+</div>
+
+<canvas id="game"></canvas>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+let player = {
+    x: canvas.width/2,
+    y: canvas.height/2,
+    size: 30,
+    speed: 5,
+    color: "#00ffee",
+    health: 100
+};
+
+let bullets = [];
+let enemies = [];
+let keys = {};
+let kills = 0;
+let gameRunning = false;
+
+document.addEventListener("keydown", e=>{
+    keys[e.key] = true;
+});
+
+document.addEventListener("keyup", e=>{
+    keys[e.key] = false;
+});
+
+document.addEventListener("click", shoot);
+
+function startGame(){
+    document.getElementById("menu").style.display="none";
+    gameRunning = true;
+    spawnEnemies();
+    gameLoop();
+}
+
+function shoot(e){
+    if(!gameRunning) return;
+
+    let angle = Math.atan2(
+        e.clientY - player.y,
+        e.clientX - player.x
+    );
+
+    bullets.push({
+        x: player.x,
+        y: player.y,
+        dx: Math.cos(angle)*10,
+        dy: Math.sin(angle)*10,
+        size:5
+    });
+}
+
+function spawnEnemies(){
+    setInterval(()=>{
+        if(!gameRunning) return;
+
+        let side = Math.floor(Math.random()*4);
+        let x,y;
+
+        if(side===0){
+            x=0;
+            y=Math.random()*canvas.height;
+        }
+        if(side===1){
+            x=canvas.width;
+            y=Math.random()*canvas.height;
+        }
+        if(side===2){
+            x=Math.random()*canvas.width;
+            y=0;
+        }
+        if(side===3){
+            x=Math.random()*canvas.width;
+            y=canvas.height;
+        }
+
+        enemies.push({
+            x,
+            y,
+            size:25,
+            speed:2,
+            color:"red"
+        });
+
+    },1000);
+}
+
+function update(){
+
+    if(keys["w"]) player.y -= player.speed;
+    if(keys["s"]) player.y += player.speed;
+    if(keys["a"]) player.x -= player.speed;
+    if(keys["d"]) player.x += player.speed;
+
+    bullets.forEach((b,index)=>{
+        b.x += b.dx;
+        b.y += b.dy;
+
+        enemies.forEach((e,eIndex)=>{
+            let dist = Math.hypot(b.x-e.x,b.y-e.y);
+
+            if(dist < e.size){
+                enemies.splice(eIndex,1);
+                bullets.splice(index,1);
+                kills++;
+
+                document.getElementById("kills").innerText = kills;
+            }
+        });
+    });
+
+    enemies.forEach(enemy=>{
+
+        let angle = Math.atan2(
+            player.y - enemy.y,
+            player.x - enemy.x
+        );
+
+        enemy.x += Math.cos(angle)*enemy.speed;
+        enemy.y += Math.sin(angle)*enemy.speed;
+
+        let dist = Math.hypot(
+            player.x - enemy.x,
+            player.y - enemy.y
+        );
+
+        if(dist < player.size){
+            player.health -= 1;
+            document.getElementById("vida").innerText = player.health;
+
+            if(player.health <= 0){
+                gameRunning = false;
+                document.getElementById("gameover").style.display="flex";
+            }
+        }
+    });
+}
+
+function draw(){
+
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+
+    for(let i=0;i<120;i++){
+        ctx.fillStyle="white";
+        ctx.fillRect(
+            Math.random()*canvas.width,
+            Math.random()*canvas.height,
+            2,2
+        );
+    }
+
+    ctx.fillStyle = player.color;
+    ctx.beginPath();
+    ctx.arc(player.x,player.y,player.size,0,Math.PI*2);
+    ctx.fill();
+
+    bullets.forEach(b=>{
+        ctx.fillStyle="yellow";
+        ctx.beginPath();
+        ctx.arc(b.x,b.y,b.size,0,Math.PI*2);
+        ctx.fill();
+    });
+
+    enemies.forEach(e=>{
+        ctx.fillStyle=e.color;
+        ctx.beginPath();
+        ctx.arc(e.x,e.y,e.size,0,Math.PI*2);
+        ctx.fill();
+    });
+}
+
+function gameLoop(){
+
+    if(!gameRunning) return;
+
+    update();
+    draw();
+
+    requestAnimationFrame(gameLoop);
+}
+</script>
+
+</body>
+</html>
